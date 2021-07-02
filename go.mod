@@ -31,7 +31,7 @@ require (
 	github.com/prometheus/client_model v0.2.0
 	github.com/prometheus/common v0.19.0
 	github.com/prometheus/prometheus v1.8.2-0.20210217141258-a6be548dbc17
-	github.com/rs/cors v1.7.0
+	github.com/rs/cors v1.8.0
 	github.com/shirou/gopsutil v3.21.2+incompatible
 	github.com/soheilhy/cmux v0.1.4
 	github.com/spf13/cast v1.3.1
