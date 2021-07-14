@@ -22,6 +22,8 @@ import (
 	"time"
 
 	"github.com/rs/cors"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config"
@@ -205,6 +207,9 @@ func (hss *HTTPServerSettings) ToServer(handler http.Handler, opts ...ToServerOp
 		handler,
 		middleware.WithErrorHandler(serverOpts.errorHandler),
 	)
+
+	handler = h2c.NewHandler(handler, &http2.Server{})
+
 	return &http.Server{
 		Handler: handler,
 	}

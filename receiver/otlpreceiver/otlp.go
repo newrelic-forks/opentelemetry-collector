@@ -64,6 +64,13 @@ func newOtlpReceiver(cfg *Config, logger *zap.Logger) *otlpReceiver {
 		cfg:    cfg,
 		logger: logger,
 	}
+	if r.cfg.GRPC != nil {
+		var opts []grpc.ServerOption
+		opts, err := r.cfg.GRPC.ToServerOption(nil)
+		if err == nil {
+			r.serverGRPC = grpc.NewServer(opts...)
+		}
+	}
 	if cfg.HTTP != nil {
 		r.httpMux = mux.NewRouter()
 	}
@@ -110,13 +117,6 @@ func (r *otlpReceiver) startHTTPServer(cfg *confighttp.HTTPServerSettings, host 
 func (r *otlpReceiver) startProtocolServers(host component.Host) error {
 	var err error
 	if r.cfg.GRPC != nil {
-		var opts []grpc.ServerOption
-		opts, err = r.cfg.GRPC.ToServerOption(host.GetExtensions())
-		if err != nil {
-			return err
-		}
-		r.serverGRPC = grpc.NewServer(opts...)
-
 		if r.traceReceiver != nil {
 			otlpgrpc.RegisterTracesServer(r.serverGRPC, r.traceReceiver)
 		}
@@ -129,22 +129,10 @@ func (r *otlpReceiver) startProtocolServers(host component.Host) error {
 			otlpgrpc.RegisterLogsServer(r.serverGRPC, r.logReceiver)
 		}
 
-		err = r.startGRPCServer(r.cfg.GRPC, host)
-		if err != nil {
-			return err
-		}
-		if r.cfg.GRPC.NetAddr.Endpoint == defaultGRPCEndpoint {
-			r.logger.Info("Setting up a second GRPC listener on legacy endpoint " + legacyGRPCEndpoint)
-
-			// Copy the config.
-			cfgLegacyGRPC := r.cfg.GRPC
-			// And use the legacy endpoint.
-			cfgLegacyGRPC.NetAddr.Endpoint = legacyGRPCEndpoint
-			err = r.startGRPCServer(cfgLegacyGRPC, host)
-			if err != nil {
-				return err
-			}
-		}
+		//err = r.startGRPCServer(r.cfg.GRPC, host)
+		//if err != nil {
+		//	return err
+		//}
 	}
 	if r.cfg.HTTP != nil {
 		r.serverHTTP = r.cfg.HTTP.ToServer(
@@ -191,6 +179,8 @@ func (r *otlpReceiver) registerTraceConsumer(tc consumer.Traces) error {
 	}
 	r.traceReceiver = trace.New(r.cfg.ID(), tc)
 	if r.httpMux != nil {
+		r.httpMux.Handle("/opentelemetry.proto.collector.trace.v1.TraceService/Export", r.serverGRPC)
+
 		r.httpMux.HandleFunc("/v1/traces", func(resp http.ResponseWriter, req *http.Request) {
 			handleTraces(resp, req, pbContentType, r.traceReceiver, tracesPbUnmarshaler)
 		}).Methods(http.MethodPost).Headers("Content-Type", pbContentType)
