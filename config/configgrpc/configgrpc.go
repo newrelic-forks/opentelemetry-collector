@@ -20,8 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-	"go.opentelemetry.io/otel"
+	"go.opencensus.io/plugin/ocgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/balancer/roundrobin"
 	"google.golang.org/grpc/credentials"
@@ -227,10 +226,6 @@ func (gcs *GRPCClientSettings) ToDialOptions(ext map[config.ComponentID]componen
 		opts = append(opts, grpc.WithDefaultServiceConfig(fmt.Sprintf(`{"loadBalancingPolicy":"%s"}`, gcs.BalancerName)))
 	}
 
-	// Enable OpenTelemetry observability plugin.
-	opts = append(opts, grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()))
-	opts = append(opts, grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()))
-
 	return opts, nil
 }
 
@@ -321,18 +316,9 @@ func (gss *GRPCServerSettings) ToServerOption(ext map[config.ComponentID]compone
 		)
 	}
 
-	// Enable OpenTelemetry observability plugin.
-	// TODO: Pass construct settings to have access to Tracer.
-	opts = append(opts, grpc.UnaryInterceptor(
-		otelgrpc.UnaryServerInterceptor(
-			otelgrpc.WithTracerProvider(otel.GetTracerProvider()),
-			otelgrpc.WithPropagators(otel.GetTextMapPropagator()),
-		)))
-	opts = append(opts, grpc.StreamInterceptor(
-		otelgrpc.StreamServerInterceptor(
-			otelgrpc.WithTracerProvider(otel.GetTracerProvider()),
-			otelgrpc.WithPropagators(otel.GetTextMapPropagator()),
-		)))
+	// Enable OpenCensus observability plugin.
+	// TODO: Change to OpenTelemetry when collector is changed.
+	opts = append(opts, grpc.StatsHandler(&ocgrpc.ServerHandler{}))
 
 	return opts, nil
 }
