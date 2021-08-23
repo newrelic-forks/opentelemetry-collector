@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-	"go.opentelemetry.io/otel"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/balancer/roundrobin"
 	"google.golang.org/grpc/credentials"
@@ -341,19 +340,6 @@ func (gss *GRPCServerSettings) ToServerOption(ext map[config.ComponentID]compone
 			grpc.StreamInterceptor(authenticator.GRPCStreamServerInterceptor),
 		)
 	}
-
-	// Enable OpenTelemetry observability plugin.
-	// TODO: Pass construct settings to have access to Tracer.
-	opts = append(opts, grpc.UnaryInterceptor(
-		otelgrpc.UnaryServerInterceptor(
-			otelgrpc.WithTracerProvider(otel.GetTracerProvider()),
-			otelgrpc.WithPropagators(otel.GetTextMapPropagator()),
-		)))
-	opts = append(opts, grpc.StreamInterceptor(
-		otelgrpc.StreamServerInterceptor(
-			otelgrpc.WithTracerProvider(otel.GetTracerProvider()),
-			otelgrpc.WithPropagators(otel.GetTextMapPropagator()),
-		)))
 
 	return opts, nil
 }
