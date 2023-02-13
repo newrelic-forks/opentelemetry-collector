@@ -38,14 +38,14 @@ require (
 	go.uber.org/zap v1.24.0
 	golang.org/x/net v0.5.0
 	golang.org/x/sys v0.4.0
-	google.golang.org/grpc v1.51.0
+	google.golang.org/grpc v1.53.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/cespare/xxhash/v2 v2.1.2 // indirect
+	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
@@ -76,7 +76,7 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
 	go.opentelemetry.io/contrib/zpages v0.37.0 // indirect
 	golang.org/x/text v0.6.0 // indirect
-	google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa // indirect
+	google.golang.org/genproto v0.0.0-20230110181048-76db0878b65f // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
