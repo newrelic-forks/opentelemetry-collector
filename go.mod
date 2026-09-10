@@ -40,7 +40,7 @@ require (
 	github.com/spf13/cast v1.3.1
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/viper v1.8.1
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.12.1
 	github.com/tidwall/wal v0.1.4
 	github.com/tklauser/go-sysconf v0.3.6 // indirect
 	github.com/uber/jaeger-lib v2.4.1+incompatible
@@ -49,7 +49,7 @@ require (
 	go.opentelemetry.io/collector/model v0.31.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.21.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.21.0
-	go.opentelemetry.io/contrib/zpages v0.0.0-20210722161726-7668016acb73 // indirect
+	go.opentelemetry.io/contrib/zpages v0.0.0-20210722161726-7668016acb73
 	go.opentelemetry.io/otel v1.0.0-RC1
 	go.opentelemetry.io/otel/oteltest v1.0.0-RC1
 	go.opentelemetry.io/otel/sdk v1.0.0-RC1
