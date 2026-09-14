@@ -18,18 +18,18 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
 	github.com/golang/protobuf v1.5.2
 	github.com/golang/snappy v0.0.4
-	github.com/google/go-cmp v0.5.6
+	github.com/google/go-cmp v0.5.7
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/jaegertracing/jaeger v1.24.0
-	github.com/knadh/koanf v1.2.0
+	github.com/knadh/koanf v1.5.0
 	github.com/leoluk/perflib_exporter v0.1.0
 	github.com/magiconair/properties v1.8.5
-	github.com/mitchellh/mapstructure v1.4.1
+	github.com/mitchellh/mapstructure v1.5.0
 	github.com/openzipkin/zipkin-go v0.2.5
 	github.com/pquerna/cachecontrol v0.1.0 // indirect
-	github.com/prometheus/client_golang v1.11.0
+	github.com/prometheus/client_golang v1.11.1
 	github.com/prometheus/client_model v0.2.0
 	github.com/prometheus/common v0.29.0
 	github.com/prometheus/prometheus v1.8.2-0.20210621150501-ff58416a0b02
@@ -49,7 +49,7 @@ require (
 	go.opentelemetry.io/collector/model v0.31.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.21.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.21.0
-	go.opentelemetry.io/contrib/zpages v0.0.0-20210722161726-7668016acb73 // indirect
+	go.opentelemetry.io/contrib/zpages v0.0.0-20210722161726-7668016acb73
 	go.opentelemetry.io/otel v1.0.0-RC1
 	go.opentelemetry.io/otel/oteltest v1.0.0-RC1
 	go.opentelemetry.io/otel/sdk v1.0.0-RC1
