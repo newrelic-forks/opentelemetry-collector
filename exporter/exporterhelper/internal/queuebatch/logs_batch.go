@@ -51,16 +51,104 @@ func (req *logsRequest) mergeTo(dst *logsRequest, sz sizer.LogsSizer, szt reques
 
 func (req *logsRequest) split(maxSize int, sz sizer.LogsSizer, szt request.SizerType) ([]request.Request, error) {
 	var res []request.Request
+	droppedItems := 0
+	pruned := false
+	unsplittable := false
 	for req.size(sz, szt) > maxSize {
 		ld, removedSize := extractLogs(req.ld, maxSize, sz)
 		if ld.LogRecordCount() == 0 {
-			return res, fmt.Errorf("one log record size is greater than max size, dropping items: %d", req.ld.LogRecordCount())
+			if ld.ResourceLogs().Len() > 0 {
+				// Extraction spent this batch on resources that hold no record and the
+				// batch is discarded with them, but they left the source as it did so. The
+				// request is smaller than when this attempt started, so try again with a
+				// fresh batch instead of dropping anything: the next record may well fit.
+				req.sizes.Update(szt, sz.LogsSize(req.ld))
+				continue
+			}
+			// The next record does not fit into maxSize even on its own. Drop every
+			// record in that state in a single pass, rather than one per iteration with
+			// a full size recompute after each, then carry on splitting what is left.
+			if !pruned {
+				pruned = true
+				var removedAny bool
+				droppedItems, removedAny = dropOversizedLogRecords(req.ld, maxSize, sz)
+				// Refresh the cache whether or not a record went: the pass also prunes the
+				// scopes and resources it empties, which changes the size on its own.
+				req.sizes.Update(szt, sz.LogsSize(req.ld))
+				if removedAny {
+					continue
+				}
+			}
+			// Nothing was extracted, nothing left the source and the pass found nothing
+			// to remove, so no further progress is possible. Stop rather than loop.
+			unsplittable = true
+			break
 		}
 		req.sizes.Update(szt, req.size(sz, szt)-removedSize)
 		res = append(res, newLogsRequest(ld))
 	}
-	res = append(res, req)
+	// Keep the remainder, unless the drop pass emptied it, in which case there is
+	// nothing left to export.
+	if !pruned || req.ld.LogRecordCount() > 0 {
+		res = append(res, req)
+	}
+	switch {
+	case droppedItems > 0:
+		return res, fmt.Errorf("one log record size is greater than max size, dropping items: %d", droppedItems)
+	case unsplittable && req.ld.LogRecordCount() > 0:
+		// Only worth reporting when a remainder is going out unsplit. With nothing left
+		// in it there is no log record to lose and nothing to tell the caller.
+		return res, errors.New("request size is greater than max size and cannot be split further")
+	}
 	return res, nil
+}
+
+// dropOversizedLogRecords removes every log record that cannot fit a batch of
+// maxSize even on its own, together with the scope and resource it leaves empty,
+// and reports how many it removed.
+//
+// A record shares each batch with its resource and scope, so their framing counts
+// against maxSize too. The capacity left for a record is therefore computed the same
+// way extractResourceLogs and extractScopeLogs compute it, which keeps this pass in
+// step with what extraction would accept.
+//
+// Emptied scopes and resources are pruned as well, which shrinks the request without
+// dropping a record, so the caller is told separately whether anything was removed
+// rather than inferring it from the count.
+func dropOversizedLogRecords(ld plog.Logs, maxSize int, sz sizer.LogsSizer) (droppedItems int, removedAny bool) {
+	dropped := 0
+	batchCapacity := maxSize - sz.LogsSize(plog.NewLogs())
+	ld.ResourceLogs().RemoveIf(func(rl plog.ResourceLogs) bool {
+		bareRL := plog.NewResourceLogs()
+		bareRL.SetSchemaUrl(rl.SchemaUrl())
+		rl.Resource().CopyTo(bareRL.Resource())
+		scopeCapacity := batchCapacity - (sz.DeltaSize(batchCapacity) - batchCapacity) - sz.ResourceLogsSize(bareRL)
+		rl.ScopeLogs().RemoveIf(func(sl plog.ScopeLogs) bool {
+			bareSL := plog.NewScopeLogs()
+			bareSL.SetSchemaUrl(sl.SchemaUrl())
+			sl.Scope().CopyTo(bareSL.Scope())
+			recordCapacity := scopeCapacity - (sz.DeltaSize(scopeCapacity) - scopeCapacity) - sz.ScopeLogsSize(bareSL)
+			sl.LogRecords().RemoveIf(func(lr plog.LogRecord) bool {
+				if sz.DeltaSize(sz.LogRecordSize(lr)) > recordCapacity {
+					dropped++
+					removedAny = true
+					return true
+				}
+				return false
+			})
+			if sl.LogRecords().Len() == 0 {
+				removedAny = true
+				return true
+			}
+			return false
+		})
+		if rl.ScopeLogs().Len() == 0 {
+			removedAny = true
+			return true
+		}
+		return false
+	})
+	return dropped, removedAny
 }
 
 // extractLogs extracts logs from the input logs and returns a new logs with the specified number of log records.
