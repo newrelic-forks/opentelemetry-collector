@@ -50,105 +50,43 @@ func (req *logsRequest) mergeTo(dst *logsRequest, sz sizer.LogsSizer, szt reques
 }
 
 func (req *logsRequest) split(maxSize int, sz sizer.LogsSizer, szt request.SizerType) ([]request.Request, error) {
+	if req.size(sz, szt) <= maxSize {
+		return []request.Request{req}, nil
+	}
 	var res []request.Request
 	droppedItems := 0
-	pruned := false
-	unsplittable := false
 	for req.size(sz, szt) > maxSize {
+		recordsBefore := req.ld.LogRecordCount()
 		ld, removedSize := extractLogs(req.ld, maxSize, sz)
-		if ld.LogRecordCount() == 0 {
-			if ld.ResourceLogs().Len() > 0 {
-				// Extraction spent this batch on resources that hold no record and the
-				// batch is discarded with them, but they left the source as it did so. The
-				// request is smaller than when this attempt started, so try again with a
-				// fresh batch instead of dropping anything: the next record may well fit.
-				req.sizes.Update(szt, sz.LogsSize(req.ld))
-				continue
+		dropped := recordsBefore - req.ld.LogRecordCount() - ld.LogRecordCount()
+		droppedItems += dropped
+		switch {
+		case dropped > 0:
+			// removedSize does not include the dropped records, so measure what is left.
+			req.sizes.Update(szt, sz.LogsSize(req.ld))
+		case ld.LogRecordCount() == 0:
+			// Only record-less resources or scopes left the source, or nothing did.
+			remaining := sz.LogsSize(req.ld)
+			if remaining == req.size(sz, szt) {
+				// Nothing left the source, so no progress is possible. Stop rather than loop.
+				return append(res, req), errors.New("request size is greater than max size and cannot be split further")
 			}
-			// The next record does not fit into maxSize even on its own. Drop every
-			// record in that state in a single pass, rather than one per iteration with
-			// a full size recompute after each, then carry on splitting what is left.
-			if !pruned {
-				pruned = true
-				var removedAny bool
-				droppedItems, removedAny = dropOversizedLogRecords(req.ld, maxSize, sz)
-				// Refresh the cache whether or not a record went: the pass also prunes the
-				// scopes and resources it empties, which changes the size on its own.
-				req.sizes.Update(szt, sz.LogsSize(req.ld))
-				if removedAny {
-					continue
-				}
-			}
-			// Nothing was extracted, nothing left the source and the pass found nothing
-			// to remove, so no further progress is possible. Stop rather than loop.
-			unsplittable = true
-			break
+			req.sizes.Update(szt, remaining)
+		default:
+			req.sizes.Update(szt, req.size(sz, szt)-removedSize)
 		}
-		req.sizes.Update(szt, req.size(sz, szt)-removedSize)
-		res = append(res, newLogsRequest(ld))
+		if ld.LogRecordCount() > 0 {
+			res = append(res, newLogsRequest(ld))
+		}
 	}
-	// Keep the remainder, unless the drop pass emptied it, in which case there is
-	// nothing left to export.
-	if !pruned || req.ld.LogRecordCount() > 0 {
+	// Splitting can leave nothing to export once oversized records and record-less resources are gone.
+	if req.ld.LogRecordCount() > 0 {
 		res = append(res, req)
 	}
-	switch {
-	case droppedItems > 0:
-		return res, fmt.Errorf("one log record size is greater than max size, dropping items: %d", droppedItems)
-	case unsplittable && req.ld.LogRecordCount() > 0:
-		// Only worth reporting when a remainder is going out unsplit. With nothing left
-		// in it there is no log record to lose and nothing to tell the caller.
-		return res, errors.New("request size is greater than max size and cannot be split further")
+	if droppedItems > 0 {
+		return res, fmt.Errorf("single log record exceeds the max size limit, dropping items: %d", droppedItems)
 	}
 	return res, nil
-}
-
-// dropOversizedLogRecords removes every log record that cannot fit a batch of
-// maxSize even on its own, together with the scope and resource it leaves empty,
-// and reports how many it removed.
-//
-// A record shares each batch with its resource and scope, so their framing counts
-// against maxSize too. The capacity left for a record is therefore computed the same
-// way extractResourceLogs and extractScopeLogs compute it, which keeps this pass in
-// step with what extraction would accept.
-//
-// Emptied scopes and resources are pruned as well, which shrinks the request without
-// dropping a record, so the caller is told separately whether anything was removed
-// rather than inferring it from the count.
-func dropOversizedLogRecords(ld plog.Logs, maxSize int, sz sizer.LogsSizer) (droppedItems int, removedAny bool) {
-	dropped := 0
-	batchCapacity := maxSize - sz.LogsSize(plog.NewLogs())
-	ld.ResourceLogs().RemoveIf(func(rl plog.ResourceLogs) bool {
-		bareRL := plog.NewResourceLogs()
-		bareRL.SetSchemaUrl(rl.SchemaUrl())
-		rl.Resource().CopyTo(bareRL.Resource())
-		scopeCapacity := batchCapacity - (sz.DeltaSize(batchCapacity) - batchCapacity) - sz.ResourceLogsSize(bareRL)
-		rl.ScopeLogs().RemoveIf(func(sl plog.ScopeLogs) bool {
-			bareSL := plog.NewScopeLogs()
-			bareSL.SetSchemaUrl(sl.SchemaUrl())
-			sl.Scope().CopyTo(bareSL.Scope())
-			recordCapacity := scopeCapacity - (sz.DeltaSize(scopeCapacity) - scopeCapacity) - sz.ScopeLogsSize(bareSL)
-			sl.LogRecords().RemoveIf(func(lr plog.LogRecord) bool {
-				if sz.DeltaSize(sz.LogRecordSize(lr)) > recordCapacity {
-					dropped++
-					removedAny = true
-					return true
-				}
-				return false
-			})
-			if sl.LogRecords().Len() == 0 {
-				removedAny = true
-				return true
-			}
-			return false
-		})
-		if rl.ScopeLogs().Len() == 0 {
-			removedAny = true
-			return true
-		}
-		return false
-	})
-	return dropped, removedAny
 }
 
 // extractLogs extracts logs from the input logs and returns a new logs with the specified number of log records.
@@ -164,7 +102,7 @@ func extractLogs(srcLogs plog.Logs, capacity int, sz sizer.LogsSizer) (plog.Logs
 		rawRlSize := sz.ResourceLogsSize(srcRL)
 		rlSize := sz.DeltaSize(rawRlSize)
 		if rlSize > capacityLeft {
-			extSrcRL, extRlSize := extractResourceLogs(srcRL, capacityLeft, sz)
+			extSrcRL, extRlSize := extractResourceLogs(srcRL, capacityLeft, capacity, sz)
 			// This cannot make it to exactly 0 for the bytes,
 			// force it to be 0 since that is the stopping condition.
 			capacityLeft = 0
@@ -176,7 +114,8 @@ func extractLogs(srcLogs plog.Logs, capacity int, sz sizer.LogsSizer) (plog.Logs
 			if extSrcRL.ScopeLogs().Len() > 0 {
 				extSrcRL.MoveTo(destLogs.ResourceLogs().AppendEmpty())
 			}
-			return extSrcRL.ScopeLogs().Len() != 0
+			// Remove the source resource once nothing is left in it.
+			return srcRL.ScopeLogs().Len() == 0
 		}
 		capacityLeft -= rlSize
 		removedSize += rlSize
@@ -187,12 +126,14 @@ func extractLogs(srcLogs plog.Logs, capacity int, sz sizer.LogsSizer) (plog.Logs
 }
 
 // extractResourceLogs extracts resource logs and returns a new resource logs with the specified number of log records.
-func extractResourceLogs(srcRL plog.ResourceLogs, capacity int, sz sizer.LogsSizer) (plog.ResourceLogs, int) {
+func extractResourceLogs(srcRL plog.ResourceLogs, capacity, maxSize int, sz sizer.LogsSizer) (plog.ResourceLogs, int) {
 	destRL := plog.NewResourceLogs()
 	destRL.SetSchemaUrl(srcRL.SchemaUrl())
 	srcRL.Resource().CopyTo(destRL.Resource())
 	// Take into account that this can have max "capacity", so when added to the parent will need space for the extra delta size.
 	capacityLeft := capacity - (sz.DeltaSize(capacity) - capacity) - sz.ResourceLogsSize(destRL)
+	// Room for a scope in an otherwise empty batch, once this resource's header and attributes are paid for.
+	maxScopeSize := maxSize - (sz.DeltaSize(maxSize) - maxSize) - sz.ResourceLogsSize(destRL)
 	removedSize := 0
 	srcRL.ScopeLogs().RemoveIf(func(srcSL plog.ScopeLogs) bool {
 		// If the no more capacity left just return.
@@ -202,7 +143,7 @@ func extractResourceLogs(srcRL plog.ResourceLogs, capacity int, sz sizer.LogsSiz
 		rawSlSize := sz.ScopeLogsSize(srcSL)
 		slSize := sz.DeltaSize(rawSlSize)
 		if slSize > capacityLeft {
-			extSrcSL, extSlSize := extractScopeLogs(srcSL, capacityLeft, sz)
+			extSrcSL, extSlSize := extractScopeLogs(srcSL, capacityLeft, maxScopeSize, sz)
 			// This cannot make it to exactly 0 for the bytes,
 			// force it to be 0 since that is the stopping condition.
 			capacityLeft = 0
@@ -214,7 +155,8 @@ func extractResourceLogs(srcRL plog.ResourceLogs, capacity int, sz sizer.LogsSiz
 			if extSrcSL.LogRecords().Len() > 0 {
 				extSrcSL.MoveTo(destRL.ScopeLogs().AppendEmpty())
 			}
-			return extSrcSL.LogRecords().Len() != 0
+			// Remove the source scope once nothing is left in it.
+			return srcSL.LogRecords().Len() == 0
 		}
 		capacityLeft -= slSize
 		removedSize += slSize
@@ -225,12 +167,14 @@ func extractResourceLogs(srcRL plog.ResourceLogs, capacity int, sz sizer.LogsSiz
 }
 
 // extractScopeLogs extracts scope logs and returns a new scope logs with the specified number of log records.
-func extractScopeLogs(srcSL plog.ScopeLogs, capacity int, sz sizer.LogsSizer) (plog.ScopeLogs, int) {
+func extractScopeLogs(srcSL plog.ScopeLogs, capacity, maxScopeSize int, sz sizer.LogsSizer) (plog.ScopeLogs, int) {
 	destSL := plog.NewScopeLogs()
 	destSL.SetSchemaUrl(srcSL.SchemaUrl())
 	srcSL.Scope().CopyTo(destSL.Scope())
 	// Take into account that this can have max "capacity", so when added to the parent will need space for the extra delta size.
 	capacityLeft := capacity - (sz.DeltaSize(capacity) - capacity) - sz.ScopeLogsSize(destSL)
+	// Largest log record that fits an otherwise empty batch, once the resource and scope headers and attributes are paid for.
+	maxRecordSize := maxScopeSize - (sz.DeltaSize(maxScopeSize) - maxScopeSize) - sz.ScopeLogsSize(destSL)
 	removedSize := 0
 	srcSL.LogRecords().RemoveIf(func(srcLR plog.LogRecord) bool {
 		// If the no more capacity left just return.
@@ -238,6 +182,10 @@ func extractScopeLogs(srcSL plog.ScopeLogs, capacity int, sz sizer.LogsSizer) (p
 			return false
 		}
 		rlSize := sz.DeltaSize(sz.LogRecordSize(srcLR))
+		if rlSize > maxRecordSize {
+			// It can never be exported and would block every record behind it, so drop it.
+			return true
+		}
 		if rlSize > capacityLeft {
 			// This cannot make it to exactly 0 for the bytes,
 			// force it to be 0 since that is the stopping condition.
