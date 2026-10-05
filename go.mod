@@ -10,7 +10,7 @@ require (
 	github.com/apache/thrift v0.14.2
 	github.com/cenkalti/backoff/v4 v4.1.1
 	github.com/census-instrumentation/opencensus-proto v0.3.0
-	github.com/coreos/go-oidc v2.2.1+incompatible
+	github.com/coreos/go-oidc v2.5.0+incompatible
 	github.com/fatih/structtag v1.2.0
 	github.com/go-kit/kit v0.11.0
 	github.com/go-ole/go-ole v1.2.5 // indirect
@@ -49,7 +49,7 @@ require (
 	go.opentelemetry.io/collector/model v0.31.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.21.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.21.0
-	go.opentelemetry.io/contrib/zpages v0.0.0-20210722161726-7668016acb73 // indirect
+	go.opentelemetry.io/contrib/zpages v0.0.0-20210722161726-7668016acb73
 	go.opentelemetry.io/otel v1.0.0-RC1
 	go.opentelemetry.io/otel/oteltest v1.0.0-RC1
 	go.opentelemetry.io/otel/sdk v1.0.0-RC1
@@ -61,6 +61,7 @@ require (
 	google.golang.org/genproto v0.0.0-20210604141403-392c879c8b08
 	google.golang.org/grpc v1.39.0
 	google.golang.org/protobuf v1.27.1
+	gopkg.in/go-jose/go-jose.v2 v2.6.3 // indirect
 	gopkg.in/yaml.v2 v2.4.0
 )
 
