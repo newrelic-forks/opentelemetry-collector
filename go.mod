@@ -5,7 +5,6 @@ go 1.16
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.3.0
 	github.com/Shopify/sarama v1.29.1
-	github.com/StackExchange/wmi v0.0.0-20210224194228-fe8f1750fd46 // indirect
 	github.com/antonmedv/expr v1.8.9
 	github.com/apache/thrift v0.14.2
 	github.com/cenkalti/backoff/v4 v4.1.1
@@ -13,7 +12,6 @@ require (
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/fatih/structtag v1.2.0
 	github.com/go-kit/kit v0.11.0
-	github.com/go-ole/go-ole v1.2.5 // indirect
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
 	github.com/golang/protobuf v1.5.2
@@ -35,7 +33,7 @@ require (
 	github.com/prometheus/prometheus v1.8.2-0.20210621150501-ff58416a0b02
 	github.com/prometheus/statsd_exporter v0.21.0 // indirect
 	github.com/rs/cors v1.8.0
-	github.com/shirou/gopsutil v3.21.6+incompatible
+	github.com/shirou/gopsutil v3.21.11+incompatible
 	github.com/soheilhy/cmux v0.1.5
 	github.com/spf13/cast v1.3.1
 	github.com/spf13/cobra v1.2.1
@@ -45,11 +43,12 @@ require (
 	github.com/tklauser/go-sysconf v0.3.6 // indirect
 	github.com/uber/jaeger-lib v2.4.1+incompatible
 	github.com/xdg-go/scram v1.0.2
+	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.opencensus.io v0.23.0
 	go.opentelemetry.io/collector/model v0.31.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.21.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.21.0
-	go.opentelemetry.io/contrib/zpages v0.0.0-20210722161726-7668016acb73 // indirect
+	go.opentelemetry.io/contrib/zpages v0.0.0-20210722161726-7668016acb73
 	go.opentelemetry.io/otel v1.0.0-RC1
 	go.opentelemetry.io/otel/oteltest v1.0.0-RC1
 	go.opentelemetry.io/otel/sdk v1.0.0-RC1
