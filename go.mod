@@ -16,7 +16,7 @@ require (
 	github.com/go-ole/go-ole v1.2.5 // indirect
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
-	github.com/golang/protobuf v1.5.2
+	github.com/golang/protobuf v1.5.4
 	github.com/golang/snappy v0.0.4
 	github.com/google/go-cmp v0.5.6
 	github.com/google/uuid v1.3.0
@@ -49,7 +49,7 @@ require (
 	go.opentelemetry.io/collector/model v0.31.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.21.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.21.0
-	go.opentelemetry.io/contrib/zpages v0.0.0-20210722161726-7668016acb73 // indirect
+	go.opentelemetry.io/contrib/zpages v0.0.0-20210722161726-7668016acb73
 	go.opentelemetry.io/otel v1.0.0-RC1
 	go.opentelemetry.io/otel/oteltest v1.0.0-RC1
 	go.opentelemetry.io/otel/sdk v1.0.0-RC1
@@ -60,7 +60,7 @@ require (
 	golang.org/x/text v0.3.6
 	google.golang.org/genproto v0.0.0-20210604141403-392c879c8b08
 	google.golang.org/grpc v1.39.0
-	google.golang.org/protobuf v1.27.1
+	google.golang.org/protobuf v1.33.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
